@@ -103,9 +103,9 @@ int copy_tb           = -1;
 int debug_ts          = 0;
 int exit_on_error     = 0;
 int abort_on_flags    = 0;
-int print_stats       = -1;
+int print_stats       = 1;
 int qp_hist           = 0;
-int stdin_interaction = 1;
+int stdin_interaction = 0;
 int frame_bits_per_raw_sample = 0;
 float max_error_rate  = 2.0/3;
 int filter_nbthreads = 0;
@@ -114,7 +114,7 @@ int vstats_version = 2;
 
 
 static int intra_only         = 0;
-static int file_overwrite     = 0;
+static int file_overwrite     = 1;
 static int no_file_overwrite  = 0;
 static int do_psnr            = 0;
 static int input_sync;

@@ -1813,11 +1813,10 @@ static void print_report(int is_last_report, int64_t timer_start, int64_t cur_ti
     }
 
     if (print_stats || is_last_report) {
-        const char end = is_last_report ? '\n' : '\r';
         if (print_stats==1 && AV_LOG_INFO > av_log_get_level()) {
-            fprintf(stderr, "%s    %c", buf.str, end);
+            fprintf(stderr, "%s\n", buf.str);
         } else
-            av_log(NULL, AV_LOG_INFO, "%s    %c", buf.str, end);
+            av_log(NULL, AV_LOG_INFO, "%s\n", buf.str);
 
         fflush(stderr);
     }
@@ -4831,11 +4830,21 @@ static void log_callback_null(void *ptr, int level, const char *fmt, va_list vl)
 {
 }
 
-int main(int argc, char **argv)
+static void init_variables() {
+  nb_input_streams  = 0;
+  nb_input_files    = 0;
+  nb_output_streams = 0;
+  nb_output_files   = 0;
+  nb_filtergraphs   = 0;
+  ffmpeg_exited     = 0;
+}
+
+int ffmpeg(int argc, char **argv)
 {
     int i, ret;
     BenchmarkTimeStamps ti;
 
+    init_variables();
     init_dynload();
 
     register_exit(ffmpeg_cleanup);
@@ -4844,6 +4853,10 @@ int main(int argc, char **argv)
 
     av_log_set_flags(AV_LOG_SKIP_REPEATED);
     parse_loglevel(argc, argv, options);
+
+    if (ffmpeg_exited) {
+        return 1;
+    }
 
     if(argc>1 && !strcmp(argv[1], "-d")){
         run_as_daemon=1;
@@ -4881,9 +4894,18 @@ int main(int argc, char **argv)
             want_sdp = 0;
     }
 
+    if (ffmpeg_exited) {
+        return 1;
+    }
+
     current_time = ti = get_benchmark_time_stamps();
     if (transcode() < 0)
         exit_program(1);
+
+    if (ffmpeg_exited) {
+        return 1;
+    }
+
     if (do_benchmark) {
         int64_t utime, stime, rtime;
         current_time = get_benchmark_time_stamps();
