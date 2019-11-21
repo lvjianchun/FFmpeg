@@ -4839,7 +4839,7 @@ static void init_variables() {
   ffmpeg_exited     = 0;
 }
 
-int ffmpeg(int argc, char **argv)
+int main(int argc, char **argv)
 {
     int i, ret;
     BenchmarkTimeStamps ti;

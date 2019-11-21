@@ -142,10 +142,6 @@ build_zlib() {
 	cd $LAST_PWD
 }
 
-#	--disable-everything \
-#		--enable-libx264 \
-#		--disable-ffmpeg \
-#	--enable-ffmpeg \
 configure_ffmpeg() {
 	emconfigure ./configure \
 	--prefix=$BUILD_DIR \
@@ -185,11 +181,8 @@ configure_ffmpeg() {
 	--enable-encoder=ac3 --enable-decoder=ac3 --enable-muxer=ac3 --enable-demuxer=ac3 --enable-parser=ac3 \
 	--enable-decoder=opus --enable-encoder=libopus --enable-muxer=opus --enable-libopus --enable-parser=opus \
 	--enable-encoder=pcm_s16le --enable-decoder=pcm_s16le \
-	--enable-encoder=pcm_u8 --enable-decoder=pcm_u8 --enable-muxer=pcm_u8 --enable-demuxer=pcm_u8 \
 	--enable-muxer=matroska --enable-demuxer=matroska \
 	--enable-encoder=aac --enable-decoder=aac --enable-demuxer=aac --enable-parser=aac \
-	--enable-encoder=libvo_aacenc \
-	--enable-encoder=libaacplus \
 	--enable-muxer=adts \
 	--enable-libopencore-amrnb --enable-encoder=libopencore_amrnb --enable-decoder=libopencore_amrnb \
 	--enable-libopencore-amrwb --enable-decoder=libopencore_amrwb \
@@ -210,13 +203,10 @@ configure_ffmpeg() {
 	--enable-demuxer=xwma \
 	--enable-muxer=asf --enable-demuxer=asf \
 	--enable-muxer=avi --enable-demuxer=avi \
-	--enable-encoder=wmv1 --enable-decoder=wmv1 \
-	--enable-encoder=wmv2 --enable-decoder=wmv2 \
-	--enable-decoder=wmv3 --enable-decoder=wmv3_crystalhd --enable-decoder=wmv3_vdpau --enable-decoder=wmv3image \
 	--enable-encoder=bmp --enable-decoder=bmp --enable-parser=bmp \
 	--enable-encoder=png --enable-decoder=png --enable-parser=png \
 	--enable-decoder=mjpeg --enable-encoder=mjpeg --enable-muxer=mjpeg --enable-demuxer=mjpeg \
-	--enable-encoder=jpeg2000 --enable-encoder=ljpeg --enable-encoder=jpegls --enable-decoder=jpeg2000 --enable-decoder=jpegls --enable-decoder=mjpegb \
+	--enable-encoder=jpeg2000 --enable-encoder=jpegls --enable-decoder=jpeg2000 --enable-decoder=jpegls --enable-decoder=mjpegb \
 	--enable-muxer=image2 --enable-demuxer=image2 \
 	--enable-filter=scale \
 	--enable-swscale --enable-swscale-alpha \
@@ -228,6 +218,12 @@ configure_ffmpeg() {
 	--enable-muxer=mov --enable-demuxer=mov \
 	--enable-demuxer=aiff --enable-muxer=aiff \
 	--enable-muxer=mmf --enable-demuxer=mmf \
+	--enable-decoder=ape --enable-demuxer=ape \
+	--enable-decoder=mp3on4 --enable-decoder=mp3on4float \
+	--enable-decoder=xma1 --enable-decoder=xma2 \
+	--enable-decoder=mace3 --enable-decoder=mace6 \
+	--enable-decoder=twinvq \
+	--enable-decoder=mpc7 --enable-decoder=mpc8 --enable-decoder=tta \
 	--enable-muxer=ipod \
 	--enable-decoder='pcm*'
 
@@ -253,14 +249,14 @@ build_ffmpegjs() {
 		-s USE_SDL=2 \
 		-s MODULARIZE=1 \
 		-s SINGLE_FILE=1 \
-		-s EXPORTED_FUNCTIONS="[_ffmpeg]" \
+		-s EXPORTED_FUNCTIONS="[_main]" \
 		-s EXTRA_EXPORTED_RUNTIME_METHODS="[cwrap, FS, getValue, setValue]" \
 		-s TOTAL_MEMORY=128MB \
 		-s ALLOW_MEMORY_GROWTH=1
 }
 
 main() {
-#	install_package
+	install_package
 #	build_zlib
 #	build_fdk_aac
 #	build_lame
@@ -269,9 +265,11 @@ main() {
 #	build_amrwbenc
 #	build_opus
 #	build_shine
-#	configure_ffmpeg
-#	make_ffmpeg
+	configure_ffmpeg
+	make_ffmpeg
 	build_ffmpegjs
 }
 
+date
 main "$@"
+date
