@@ -190,7 +190,7 @@ configure_ffmpeg() {
 	--enable-decoder=amrnb --enable-decoder=amrwb \
 	--enable-muxer=amr --enable-demuxer=amr \
 	--enable-muxer=wav --enable-demuxer=wav \
-	--enable-encoder=wavpack --enable-decoder=wavpack \
+	--enable-encoder=wavpack --enable-decoder=wavpack --enable-muxer=wv --enable-demuxer=wv \
 	--enable-encoder=vorbis --enable-decoder=vorbis --enable-parser=vorbis \
 	--enable-muxer=ogg --enable-demuxer=ogg \
 	--enable-decoder=mp1float --enable-decoder=mp1 \
@@ -225,7 +225,7 @@ configure_ffmpeg() {
 	--enable-decoder=twinvq \
 	--enable-decoder=mpc7 --enable-decoder=mpc8 --enable-decoder=tta \
 	--enable-muxer=ipod \
-	--enable-decoder='pcm*'
+	--enable-encoder=pcm_s16be --enable-decoder='pcm*' \
 
 }
 
