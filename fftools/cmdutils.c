@@ -67,6 +67,7 @@
 #endif
 
 static int init_report(const char *env);
+volatile int ffmpeg_exited = 0;
 
 AVDictionary *sws_dict;
 AVDictionary *swr_opts;
@@ -135,6 +136,7 @@ void register_exit(void (*cb)(int ret))
 
 void exit_program(int ret)
 {
+    ffmpeg_exited = 1;
     if (program_exit)
         program_exit(ret);
 
@@ -408,6 +410,7 @@ void parse_options(void *optctx, int argc, char **argv, const OptionDef *options
             if (parse_arg_function)
                 parse_arg_function(optctx, opt);
         }
+        if (ffmpeg_exited) return;
     }
 }
 
@@ -437,6 +440,7 @@ int parse_optgroup(void *optctx, OptionGroup *g)
         ret = write_option(optctx, o->opt, o->key, o->val);
         if (ret < 0)
             return ret;
+        if (ffmpeg_exited) return 1;
     }
 
     av_log(NULL, AV_LOG_DEBUG, "Successfully parsed a group of options.\n");
@@ -714,6 +718,7 @@ static void init_parse_context(OptionParseContext *octx,
     octx->groups    = av_mallocz_array(octx->nb_groups, sizeof(*octx->groups));
     if (!octx->groups)
         exit_program(1);
+    if (ffmpeg_exited) return;
 
     for (i = 0; i < octx->nb_groups; i++)
         octx->groups[i].group_def = &groups[i];
@@ -1018,6 +1023,7 @@ static int init_report(const char *env)
         }
         av_free(val);
         av_free(key);
+        if (ffmpeg_exited) return 1;
     }
 
     av_bprint_init(&filename, 0, AV_BPRINT_SIZE_AUTOMATIC);
@@ -1532,6 +1538,7 @@ static unsigned get_codecs_sorted(const AVCodecDescriptor ***rcodecs)
         av_log(NULL, AV_LOG_ERROR, "Out of memory\n");
         exit_program(1);
     }
+    if (ffmpeg_exited) return 1;
     desc = NULL;
     while ((desc = avcodec_descriptor_next(desc)))
         codecs[i++] = desc;
@@ -2123,6 +2130,7 @@ AVDictionary *filter_codec_opts(AVDictionary *opts, enum AVCodecID codec_id,
             default:         exit_program(1);
             }
 
+        if (ffmpeg_exited) return ret;
         if (av_opt_find(&cc, t->key, NULL, flags, AV_OPT_SEARCH_FAKE_OBJ) ||
             !codec ||
             (codec->priv_class &&
@@ -2165,12 +2173,14 @@ void *grow_array(void *array, int elem_size, int *size, int new_size)
     if (new_size >= INT_MAX / elem_size) {
         av_log(NULL, AV_LOG_ERROR, "Array too big.\n");
         exit_program(1);
+        return NULL;
     }
     if (*size < new_size) {
         uint8_t *tmp = av_realloc_array(array, new_size, elem_size);
         if (!tmp) {
             av_log(NULL, AV_LOG_ERROR, "Could not alloc buffer.\n");
             exit_program(1);
+            return NULL;
         }
         memset(tmp + *size*elem_size, 0, (new_size-*size) * elem_size);
         *size = new_size;

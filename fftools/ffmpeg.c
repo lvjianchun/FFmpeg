@@ -334,7 +334,7 @@ void term_exit(void)
 static volatile int received_sigterm = 0;
 static volatile int received_nb_signals = 0;
 static atomic_int transcode_init_done = ATOMIC_VAR_INIT(0);
-static volatile int ffmpeg_exited = 0;
+extern int ffmpeg_exited;
 static int main_return_code = 0;
 
 static void
@@ -728,6 +728,7 @@ static void write_packet(OutputFile *of, AVPacket *pkt, OutputStream *ost, int u
         ret = av_packet_make_refcounted(pkt);
         if (ret < 0)
             exit_program(1);
+        if (ffmpeg_exited) return;
         av_packet_move_ref(&tmp_pkt, pkt);
         av_fifo_generic_write(ost->muxing_queue, &tmp_pkt, sizeof(tmp_pkt), NULL);
         return;
@@ -786,6 +787,7 @@ static void write_packet(OutputFile *of, AVPacket *pkt, OutputStream *ost, int u
                 if (exit_on_error) {
                     av_log(NULL, AV_LOG_FATAL, "aborting.\n");
                     exit_program(1);
+                    return;
                 }
                 av_log(s, loglevel, "changing to %"PRId64". This may result "
                        "in incorrect timestamps in the output file.\n",
@@ -992,6 +994,7 @@ static void do_subtitle_out(OutputFile *of,
         if (!subtitle_out) {
             av_log(NULL, AV_LOG_FATAL, "Failed to allocate subtitle_out\n");
             exit_program(1);
+            return;
         }
     }
 
@@ -1031,6 +1034,7 @@ static void do_subtitle_out(OutputFile *of,
         if (subtitle_out_size < 0) {
             av_log(NULL, AV_LOG_FATAL, "Subtitle encoding failed\n");
             exit_program(1);
+            return;
         }
 
         av_init_packet(&pkt);
@@ -1369,6 +1373,7 @@ static void do_video_stats(OutputStream *ost, int frame_size)
         if (!vstats_file) {
             perror("fopen");
             exit_program(1);
+            return;
         }
     }
 
@@ -1445,6 +1450,7 @@ static int reap_filters(int flush)
                 av_log(NULL, AV_LOG_ERROR, "Error initializing output stream %d:%d -- %s\n",
                        ost->file_index, ost->index, error);
                 exit_program(1);
+                return -1;
             }
         }
 
