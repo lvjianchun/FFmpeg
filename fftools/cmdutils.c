@@ -1612,6 +1612,7 @@ int show_codecs(void *optctx, const char *opt, const char *arg)
         printf("\n");
     }
     av_free(codecs);
+    exit_program(0);
     return 0;
 }
 
@@ -1656,12 +1657,14 @@ static void print_codecs(int encoder)
 int show_decoders(void *optctx, const char *opt, const char *arg)
 {
     print_codecs(0);
+    exit_program(0);
     return 0;
 }
 
 int show_encoders(void *optctx, const char *opt, const char *arg)
 {
     print_codecs(1);
+    exit_program(0);
     return 0;
 }
 
@@ -1674,6 +1677,7 @@ int show_bsfs(void *optctx, const char *opt, const char *arg)
     while ((bsf = av_bsf_iterate(&opaque)))
         printf("%s\n", bsf->name);
     printf("\n");
+    exit_program(0);
     return 0;
 }
 
@@ -1689,6 +1693,7 @@ int show_protocols(void *optctx, const char *opt, const char *arg)
     printf("Output:\n");
     while ((name = avio_enum_protocols(&opaque, 1)))
         printf("  %s\n", name);
+    exit_program(0);
     return 0;
 }
 
@@ -1736,6 +1741,7 @@ int show_filters(void *optctx, const char *opt, const char *arg)
 #else
     printf("No filters available: libavfilter disabled\n");
 #endif
+    exit_program(0);
     return 0;
 }
 
@@ -1750,6 +1756,7 @@ int show_colors(void *optctx, const char *opt, const char *arg)
     for (i = 0; name = av_get_known_color_name(i, &rgb); i++)
         printf("%-32s #%02x%02x%02x\n", name, rgb[0], rgb[1], rgb[2]);
 
+    exit_program(0);
     return 0;
 }
 
@@ -1783,6 +1790,7 @@ int show_pix_fmts(void *optctx, const char *opt, const char *arg)
                pix_desc->nb_components,
                av_get_bits_per_pixel(pix_desc));
     }
+    exit_program(0);
     return 0;
 }
 
@@ -1812,6 +1820,7 @@ int show_layouts(void *optctx, const char *opt, const char *arg)
             printf("\n");
         }
     }
+    exit_program(0);
     return 0;
 }
 
@@ -1821,6 +1830,7 @@ int show_sample_fmts(void *optctx, const char *opt, const char *arg)
     char fmt_str[128];
     for (i = -1; i < AV_SAMPLE_FMT_NB; i++)
         printf("%s\n", av_get_sample_fmt_string(fmt_str, sizeof(fmt_str), i));
+    exit_program(0);
     return 0;
 }
 
@@ -1857,6 +1867,7 @@ static void show_help_codec(const char *name, int encoder)
         av_log(NULL, AV_LOG_ERROR, "Codec '%s' is not recognized by FFmpeg.\n",
                name);
     }
+    exit_program(0);
 }
 
 static void show_help_demuxer(const char *name)
@@ -1875,6 +1886,7 @@ static void show_help_demuxer(const char *name)
 
     if (fmt->priv_class)
         show_help_children(fmt->priv_class, AV_OPT_FLAG_DECODING_PARAM);
+    exit_program(0);
 }
 
 static void show_help_muxer(const char *name)
@@ -1908,6 +1920,7 @@ static void show_help_muxer(const char *name)
 
     if (fmt->priv_class)
         show_help_children(fmt->priv_class, AV_OPT_FLAG_ENCODING_PARAM);
+    exit_program(0);
 }
 
 #if CONFIG_AVFILTER
@@ -1983,6 +1996,7 @@ static void show_help_bsf(const char *name)
                           AV_CODEC_ID_NONE, GET_CODEC_NAME);
     if (bsf->priv_class)
         show_help_children(bsf->priv_class, AV_OPT_FLAG_BSF_PARAM);
+    exit_program(0);
 }
 
 int show_help(void *optctx, const char *opt, const char *arg)
@@ -2018,6 +2032,7 @@ int show_help(void *optctx, const char *opt, const char *arg)
     }
 
     av_freep(&topic);
+    exit_program(0);
     return 0;
 }
 
