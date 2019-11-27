@@ -67,7 +67,7 @@
 #endif
 
 static int init_report(const char *env);
-volatile int ffmpeg_exited = 0;
+static volatile int program_pending_die = 0;
 
 AVDictionary *sws_dict;
 AVDictionary *swr_opts;
@@ -129,6 +129,21 @@ void init_dynload(void)
 
 static void (*program_exit)(int ret);
 
+void reset_program_pending_die(void)
+{
+    program_pending_die = 0;
+}
+
+void mark_program_pending_die(void)
+{
+    program_pending_die = 1;
+}
+
+int should_program_die(void)
+{
+    return program_pending_die;
+}
+
 void register_exit(void (*cb)(int ret))
 {
     program_exit = cb;
@@ -136,7 +151,7 @@ void register_exit(void (*cb)(int ret))
 
 void exit_program(int ret)
 {
-    ffmpeg_exited = 1;
+    mark_program_pending_die();
     if (program_exit)
         program_exit(ret);
 
@@ -160,7 +175,7 @@ double parse_number_or_die(const char *context, const char *numstr, int type,
     else
         return d;
     av_log(NULL, AV_LOG_FATAL, error, context, numstr, min, max);
-    exit_program(1);
+    mark_program_pending_die();
     return 0;
 }
 
@@ -171,7 +186,7 @@ int64_t parse_time_or_die(const char *context, const char *timestr,
     if (av_parse_time(&us, timestr, is_duration) < 0) {
         av_log(NULL, AV_LOG_FATAL, "Invalid %s specification for %s: %s\n",
                is_duration ? "duration" : "date", context, timestr);
-        exit_program(1);
+        mark_program_pending_die();
     }
     return us;
 }
@@ -303,12 +318,14 @@ static int write_option(void *optctx, const OptionDef *po, const char *opt,
                 (uint8_t *)optctx + po->u.off : po->u.dst_ptr;
     int *dstcount;
 
+    if (should_program_die()) return 0;
     if (po->flags & OPT_SPEC) {
         SpecifierOpt **so = dst;
         char *p = strchr(opt, ':');
         char *str;
 
         dstcount = (int *)(so + 1);
+        if (should_program_die()) return 0;
         *so = grow_array(*so, sizeof(**so), dstcount, *dstcount + 1);
         str = av_strdup(p ? p + 1 : "");
         if (!str)
@@ -318,6 +335,7 @@ static int write_option(void *optctx, const OptionDef *po, const char *opt,
     }
 
     if (po->flags & OPT_STRING) {
+        if (should_program_die()) return 0;
         char *str;
         str = av_strdup(arg);
         av_freep(dst);
@@ -325,16 +343,22 @@ static int write_option(void *optctx, const OptionDef *po, const char *opt,
             return AVERROR(ENOMEM);
         *(char **)dst = str;
     } else if (po->flags & OPT_BOOL || po->flags & OPT_INT) {
+        if (should_program_die()) return 0;
         *(int *)dst = parse_number_or_die(opt, arg, OPT_INT64, INT_MIN, INT_MAX);
     } else if (po->flags & OPT_INT64) {
+        if (should_program_die()) return 0;
         *(int64_t *)dst = parse_number_or_die(opt, arg, OPT_INT64, INT64_MIN, INT64_MAX);
     } else if (po->flags & OPT_TIME) {
+        if (should_program_die()) return 0;
         *(int64_t *)dst = parse_time_or_die(opt, arg, 1);
     } else if (po->flags & OPT_FLOAT) {
+        if (should_program_die()) return 0;
         *(float *)dst = parse_number_or_die(opt, arg, OPT_FLOAT, -INFINITY, INFINITY);
     } else if (po->flags & OPT_DOUBLE) {
+        if (should_program_die()) return 0;
         *(double *)dst = parse_number_or_die(opt, arg, OPT_DOUBLE, -INFINITY, INFINITY);
     } else if (po->u.func_arg) {
+        if (should_program_die()) return 0;
         int ret = po->u.func_arg(optctx, opt, arg);
         if (ret < 0) {
             av_log(NULL, AV_LOG_ERROR,
@@ -355,6 +379,7 @@ int parse_option(void *optctx, const char *opt, const char *arg,
     const OptionDef *po;
     int ret;
 
+    if (should_program_die()) return 0;
     po = find_option(options, opt);
     if (!po->name && opt[0] == 'n' && opt[1] == 'o') {
         /* handle 'no' bool option */
@@ -410,7 +435,7 @@ void parse_options(void *optctx, int argc, char **argv, const OptionDef *options
             if (parse_arg_function)
                 parse_arg_function(optctx, opt);
         }
-        if (ffmpeg_exited) return;
+        if (should_program_die()) return;
     }
 }
 
@@ -440,7 +465,6 @@ int parse_optgroup(void *optctx, OptionGroup *g)
         ret = write_option(optctx, o->opt, o->key, o->val);
         if (ret < 0)
             return ret;
-        if (ffmpeg_exited) return 1;
     }
 
     av_log(NULL, AV_LOG_DEBUG, "Successfully parsed a group of options.\n");
@@ -718,7 +742,7 @@ static void init_parse_context(OptionParseContext *octx,
     octx->groups    = av_mallocz_array(octx->nb_groups, sizeof(*octx->groups));
     if (!octx->groups)
         exit_program(1);
-    if (ffmpeg_exited) return;
+    if (should_program_die()) return;
 
     for (i = 0; i < octx->nb_groups; i++)
         octx->groups[i].group_def = &groups[i];
@@ -1023,7 +1047,7 @@ static int init_report(const char *env)
         }
         av_free(val);
         av_free(key);
-        if (ffmpeg_exited) return 1;
+        if (should_program_die()) return 0;
     }
 
     av_bprint_init(&filename, 0, AV_BPRINT_SIZE_AUTOMATIC);
@@ -1538,7 +1562,7 @@ static unsigned get_codecs_sorted(const AVCodecDescriptor ***rcodecs)
         av_log(NULL, AV_LOG_ERROR, "Out of memory\n");
         exit_program(1);
     }
-    if (ffmpeg_exited) return 1;
+    if (should_program_die()) return 0;
     desc = NULL;
     while ((desc = avcodec_descriptor_next(desc)))
         codecs[i++] = desc;
@@ -1612,7 +1636,7 @@ int show_codecs(void *optctx, const char *opt, const char *arg)
         printf("\n");
     }
     av_free(codecs);
-    exit_program(0);
+    mark_program_pending_die();
     return 0;
 }
 
@@ -1657,14 +1681,14 @@ static void print_codecs(int encoder)
 int show_decoders(void *optctx, const char *opt, const char *arg)
 {
     print_codecs(0);
-    exit_program(0);
+    mark_program_pending_die();
     return 0;
 }
 
 int show_encoders(void *optctx, const char *opt, const char *arg)
 {
     print_codecs(1);
-    exit_program(0);
+    mark_program_pending_die();
     return 0;
 }
 
@@ -1677,7 +1701,7 @@ int show_bsfs(void *optctx, const char *opt, const char *arg)
     while ((bsf = av_bsf_iterate(&opaque)))
         printf("%s\n", bsf->name);
     printf("\n");
-    exit_program(0);
+    mark_program_pending_die();
     return 0;
 }
 
@@ -1693,7 +1717,7 @@ int show_protocols(void *optctx, const char *opt, const char *arg)
     printf("Output:\n");
     while ((name = avio_enum_protocols(&opaque, 1)))
         printf("  %s\n", name);
-    exit_program(0);
+    mark_program_pending_die();
     return 0;
 }
 
@@ -1741,7 +1765,7 @@ int show_filters(void *optctx, const char *opt, const char *arg)
 #else
     printf("No filters available: libavfilter disabled\n");
 #endif
-    exit_program(0);
+    mark_program_pending_die();
     return 0;
 }
 
@@ -1756,7 +1780,7 @@ int show_colors(void *optctx, const char *opt, const char *arg)
     for (i = 0; name = av_get_known_color_name(i, &rgb); i++)
         printf("%-32s #%02x%02x%02x\n", name, rgb[0], rgb[1], rgb[2]);
 
-    exit_program(0);
+    mark_program_pending_die();
     return 0;
 }
 
@@ -1790,7 +1814,7 @@ int show_pix_fmts(void *optctx, const char *opt, const char *arg)
                pix_desc->nb_components,
                av_get_bits_per_pixel(pix_desc));
     }
-    exit_program(0);
+    mark_program_pending_die();
     return 0;
 }
 
@@ -1820,7 +1844,7 @@ int show_layouts(void *optctx, const char *opt, const char *arg)
             printf("\n");
         }
     }
-    exit_program(0);
+    mark_program_pending_die();
     return 0;
 }
 
@@ -1830,7 +1854,7 @@ int show_sample_fmts(void *optctx, const char *opt, const char *arg)
     char fmt_str[128];
     for (i = -1; i < AV_SAMPLE_FMT_NB; i++)
         printf("%s\n", av_get_sample_fmt_string(fmt_str, sizeof(fmt_str), i));
-    exit_program(0);
+    mark_program_pending_die();
     return 0;
 }
 
@@ -1867,7 +1891,7 @@ static void show_help_codec(const char *name, int encoder)
         av_log(NULL, AV_LOG_ERROR, "Codec '%s' is not recognized by FFmpeg.\n",
                name);
     }
-    exit_program(0);
+    mark_program_pending_die();
 }
 
 static void show_help_demuxer(const char *name)
@@ -1886,7 +1910,7 @@ static void show_help_demuxer(const char *name)
 
     if (fmt->priv_class)
         show_help_children(fmt->priv_class, AV_OPT_FLAG_DECODING_PARAM);
-    exit_program(0);
+    mark_program_pending_die();
 }
 
 static void show_help_muxer(const char *name)
@@ -1920,7 +1944,7 @@ static void show_help_muxer(const char *name)
 
     if (fmt->priv_class)
         show_help_children(fmt->priv_class, AV_OPT_FLAG_ENCODING_PARAM);
-    exit_program(0);
+    mark_program_pending_die();
 }
 
 #if CONFIG_AVFILTER
@@ -1996,7 +2020,7 @@ static void show_help_bsf(const char *name)
                           AV_CODEC_ID_NONE, GET_CODEC_NAME);
     if (bsf->priv_class)
         show_help_children(bsf->priv_class, AV_OPT_FLAG_BSF_PARAM);
-    exit_program(0);
+    mark_program_pending_die();
 }
 
 int show_help(void *optctx, const char *opt, const char *arg)
@@ -2032,7 +2056,7 @@ int show_help(void *optctx, const char *opt, const char *arg)
     }
 
     av_freep(&topic);
-    exit_program(0);
+    mark_program_pending_die();
     return 0;
 }
 
@@ -2145,7 +2169,7 @@ AVDictionary *filter_codec_opts(AVDictionary *opts, enum AVCodecID codec_id,
             default:         exit_program(1);
             }
 
-        if (ffmpeg_exited) return ret;
+        if (should_program_die()) return ret;
         if (av_opt_find(&cc, t->key, NULL, flags, AV_OPT_SEARCH_FAKE_OBJ) ||
             !codec ||
             (codec->priv_class &&

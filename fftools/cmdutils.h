@@ -51,6 +51,10 @@ extern AVDictionary *swr_opts;
 extern AVDictionary *format_opts, *codec_opts, *resample_opts;
 extern int hide_banner;
 
+void reset_program_pending_die(void);
+void mark_program_pending_die(void);
+int should_program_die(void);
+
 /**
  * Register a program-specific cleanup routine.
  */

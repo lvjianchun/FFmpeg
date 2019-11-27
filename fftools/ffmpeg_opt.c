@@ -3298,7 +3298,7 @@ static int open_files(OptionGroupList *l, const char *inout,
 int ffmpeg_parse_options(int argc, char **argv)
 {
     OptionParseContext octx;
-    uint8_t error[128];
+    uint8_t error[128] = {0};
     int ret;
 
     memset(&octx, 0, sizeof(octx));
