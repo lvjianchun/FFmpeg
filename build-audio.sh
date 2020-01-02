@@ -209,6 +209,9 @@ configure_ffmpeg() {
 	--enable-encoder=jpeg2000 --enable-encoder=jpegls --enable-decoder=jpeg2000 --enable-decoder=jpegls --enable-decoder=mjpegb \
 	--enable-muxer=image2 --enable-demuxer=image2 \
 	--enable-filter=scale \
+	--enable-filter=afade \
+	--enable-filter=asetrate \
+	--enable-filter=atempo \
 	--enable-swscale --enable-swscale-alpha \
 	--enable-parser=mpegaudio \
 	--enable-filter=aformat --enable-filter=anull --enable-filter=atrim --enable-filter=format --enable-filter=null --enable-filter=setpts --enable-filter=trim --enable-filter=aresample \
@@ -249,7 +252,7 @@ build_ffmpegjs() {
 		-s USE_SDL=2 \
 		-s MODULARIZE=1 \
 		-s SINGLE_FILE=1 \
-		-s EXPORTED_FUNCTIONS="[_main]" \
+		-s EXPORTED_FUNCTIONS="[_main, _metadata, _convert, _crop, _pitch]" \
 		-s EXTRA_EXPORTED_RUNTIME_METHODS="[cwrap, FS, getValue, setValue]" \
 		-s TOTAL_MEMORY=128MB \
 		-s ALLOW_MEMORY_GROWTH=1

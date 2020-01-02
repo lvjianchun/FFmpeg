@@ -793,11 +793,11 @@ int split_commandline(OptionParseContext *octx, int argc, char *argv[],
     av_log(NULL, AV_LOG_DEBUG, "Splitting the commandline.\n");
 
     while (optindex < argc) {
-        const char *opt = argv[optindex++], *arg;
+        const char *opt = argv[optindex++], *arg = NULL;
         const OptionDef *po;
         int ret;
 
-        av_log(NULL, AV_LOG_DEBUG, "Reading option '%s' ...", opt);
+        av_log(NULL, AV_LOG_DEBUG, "Reading option '%s' ...\n", opt);
 
         if (opt[0] == '-' && opt[1] == '-' && !opt[2]) {
             dashdash = optindex;
@@ -834,7 +834,9 @@ do {                                                                           \
         if (po->name) {
             if (po->flags & OPT_EXIT) {
                 /* optional argument, e.g. -h */
-                arg = argv[optindex++];
+                if (optindex < argc) {
+                  arg = argv[optindex++];
+                }
             } else if (po->flags & HAS_ARG) {
                 GET_ARG(arg);
             } else {

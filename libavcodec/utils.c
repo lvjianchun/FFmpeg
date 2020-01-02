@@ -66,6 +66,7 @@
 const char av_codec_ffversion[] = "FFmpeg version " FFMPEG_VERSION;
 
 static AVMutex codec_mutex = AV_MUTEX_INITIALIZER;
+int g_av_sample_rate = 0;
 
 void av_fast_padded_malloc(void *ptr, unsigned int *size, size_t min_size)
 {
@@ -1342,6 +1343,7 @@ void avcodec_string(char *buf, int buf_size, AVCodecContext *enc, int encode)
         av_strlcat(buf, separator, buf_size);
 
         if (enc->sample_rate) {
+            g_av_sample_rate = enc->sample_rate;
             snprintf(buf + strlen(buf), buf_size - strlen(buf),
                      "%d Hz, ", enc->sample_rate);
         }

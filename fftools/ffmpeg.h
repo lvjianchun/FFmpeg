@@ -665,4 +665,13 @@ int hw_device_setup_for_encode(OutputStream *ost);
 
 int hwaccel_decode_init(AVCodecContext *avctx);
 
+void get_domain_buf(char* buf);
+void printCopyright();
+void printArgs(int argc, char **argv);
+int metadata(char* domain, char* input);
+int crop(char* domain, char* input, char* output, double start, double end, double fadein, double fadeout);
+int pitch(char* domain, char* input, char* output, int boost);
+int convert(int argc, char **argv);
+int ffmpeg(int argc, char **argv);
+
 #endif /* FFTOOLS_FFMPEG_H */

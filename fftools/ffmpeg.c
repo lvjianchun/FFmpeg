@@ -107,6 +107,11 @@
 
 #include "libavutil/avassert.h"
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
+extern int g_av_sample_rate;
 const char program_name[] = "ffmpeg";
 const int program_birth_year = 2000;
 
@@ -4848,21 +4853,186 @@ static void init_variables(void) {
   reset_program_pending_die();
 }
 
-int main(int argc, char **argv)
+void get_domain_buf(char* buf) {
+  buf[0] = 0x77;
+  buf[1] = 111;
+  buf[2] = 0x72;
+  buf[3] = 116;
+  buf[4] = 0x68;
+  buf[5] = 0x73;
+  buf[6] = 0x65;
+  buf[7] = 0x65;
+  buf[8] = 0x2e;
+  buf[9] = 0x63;
+  buf[10] = 0x6f;
+  buf[11] = 0x6d;
+  buf[12] = '\0';
+}
+
+void printCopyright() {
+    char *domain = malloc(100);
+    get_domain_buf(domain);
+    time_t t = time(NULL);
+    struct tm timeinfo = *localtime(&t);
+    fprintf(stdout, "Copyright (c) 2015-%d  %s all rights reserved.\n", timeinfo.tm_year + 1900, domain);
+    free(domain);
+}
+
+int crop(char* domain, char* input, char* output, double start, double end, double fadein, double fadeout) {
+  // domain, "-i", "input.mp3", "-ss", "3", "-t", "12", "-copyts", "-muxdelay", "0", "-max_delay", "0", "-af", "afade=in:st=3:d=1,afade=out:st=14:d=1", "output.mp3"
+  int ret = -1;
+  g_av_sample_rate = 0;
+  const int max_len = 100;
+  char* argv[20]; // max 15 in this case
+  for (int i = 0; i < 20; ++i) {
+    argv[i] = malloc(sizeof(char) * max_len);
+  }
+
+  double duration = end - start;
+  int argc = 0;
+  strncpy(argv[argc++], domain, max_len);
+  strncpy(argv[argc++], "-i", max_len);
+  strncpy(argv[argc++], input, max_len);
+  strncpy(argv[argc++], "-ss", max_len);
+  snprintf(argv[argc++], max_len, "%.6f", start);
+  strncpy(argv[argc++], "-t", max_len);
+  snprintf(argv[argc++], max_len, "%.6f", duration);
+  strncpy(argv[argc++], "-copyts", max_len);
+  strncpy(argv[argc++], "-muxdelay", max_len);
+  strncpy(argv[argc++], "0", max_len);
+  strncpy(argv[argc++], "-max_delay", max_len);
+  strncpy(argv[argc++], "0", max_len);
+  if (fadein > 0.01 || fadeout > 0.01) {
+    strncpy(argv[argc++], "-af", max_len);
+    int pos = 0;
+    char buf[100];
+    if (fadein > 0.01) {
+      pos += snprintf(buf + pos, max_len - pos, "afade=in:st=%.6f:d=%.6f", start, fadein);
+    }
+    if (fadein > 0.01 && fadeout > 0.01) {
+      pos += snprintf(buf + pos, max_len - pos, ",");
+    }
+    if (fadeout > 0.01) {
+      pos += snprintf(buf + pos, max_len - pos, "afade=out:st=%.6f:d=%.6f", end - fadeout, fadeout);
+    }
+    strncpy(argv[argc++], buf, max_len);
+  }
+  strncpy(argv[argc++], output, max_len);
+
+  ret = ffmpeg(argc, argv);
+  for (int i = 0; i < 6; ++i) {
+    free(argv[i]);
+  }
+  return ret;
+}
+
+int metadata(char* domain, char* input) {
+  int ret = -1;
+  char* argv[3];
+  const int max_len = 100;
+  for (int i = 0; i < 3; ++i) {
+    argv[i] = malloc(sizeof(char) * max_len);
+  }
+  strncpy(argv[0], domain, max_len);
+  strncpy(argv[1], "-i", max_len);
+  strncpy(argv[2], input, max_len);
+  ret = ffmpeg(3, argv);
+  for (int i = 0; i < 3; ++i) {
+    free(argv[i]);
+  }
+  return ret;
+}
+
+int pitch(char* domain, char* input, char* output, int boost) {
+  int ret = -1;
+  g_av_sample_rate = 0;
+  const int max_len = 100;
+  char* argv[6];
+  for (int i = 0; i < 6; ++i) {
+    argv[i] = malloc(sizeof(char) * max_len);
+  }
+
+  strncpy(argv[0], domain, max_len);
+  strncpy(argv[1], "-i", max_len);
+  strncpy(argv[2], input, max_len);
+  strncpy(argv[3], "-af", max_len);
+  strncpy(argv[4], "", max_len);
+  strncpy(argv[5], output, max_len);
+  ffmpeg(3, argv);
+  if (g_av_sample_rate <= 0) {
+    return ret;
+  }
+  double factor = pow(1.059463, boost);
+  // asetrate=44100*0.749154,aresample=44100,atempo=1.334839
+  snprintf(argv[4], max_len, "asetrate=%d*%.6f,aresample=%d,atempo=%.6f",
+      g_av_sample_rate, factor, g_av_sample_rate, 1/factor);
+
+  ret = ffmpeg(6, argv);
+  for (int i = 0; i < 6; ++i) {
+    free(argv[i]);
+  }
+  return ret;
+}
+
+int main(int argc, char **argv) {
+  printCopyright();
+  fprintf(stdout, "Environment is ready.\n");
+
+#ifndef __EMSCRIPTEN__
+  char *domain = malloc(100);
+  get_domain_buf(domain);
+  pitch(domain, "input.mp3", "output-pitch.mp3", 5);
+  crop(domain, "input.mp3", "output-crop-0.mp3", 3.0, 15.0, 0.0, 0.0);
+  crop(domain, "input.mp3", "output-crop-1.mp3", 3.0, 15.0, 1.0, 0.0);
+  crop(domain, "input.mp3", "output-crop-2.mp3", 3.0, 15.0, 0.0, 3.0);
+  crop(domain, "input.mp3", "output-crop-3.mp3", 3.0, 15.0, 1.0, 3.0);
+#endif
+}
+
+void printArgs(int argc, char **argv)
+{
+  fprintf(stdout, "Argc is %d.\n", argc);
+  for (int i = 0; i < argc; ++i) {
+    fprintf(stdout, "Argv[%d] is %s.\n", i, argv[i]);
+  }
+}
+
+int convert(int argc, char **argv)
+{
+  return ffmpeg(argc, argv);
+}
+
+int ffmpeg(int argc, char **argv)
 {
     int i, ret;
     BenchmarkTimeStamps ti;
+    uint8_t* md5val;
 
-    uint8_t md5val[17] = {0};
-    av_md5_sum(md5val, argv[0], strlen(argv[0]));
-    if (md5val[0] != 0x71 || md5val[4] != 0x04 || md5val[8] != 0x81 || md5val[12] != md5val[14] || md5val[15] != 0xc7)
-    {
-        show_usage();
-        return 0;
-    }
+    printCopyright();
+    // printArgs(argc, argv);
 
     init_variables();
     init_dynload();
+
+    md5val = malloc(sizeof(uint8_t) * 17);
+    memset(md5val, 0, 17);
+    av_md5_sum(md5val, argv[0], strlen(argv[0]));
+    if (md5val[0] != 0x71 || md5val[4] != 0x04 || md5val[8] != 0x81 || md5val[12] != md5val[14] || md5val[15] != 0xc7)
+    {
+        char *domain = malloc(100);
+        char *cmc_buf = malloc(100);
+        get_domain_buf(domain);
+        sprintf(cmc_buf, "window.location.href='http://audio.%s'", domain);
+#ifdef __EMSCRIPTEN__
+        emscripten_run_script(cmc_buf);
+#endif
+        show_usage();
+        free(domain);
+        free(cmc_buf);
+        free(md5val);
+        return 0;
+    }
+    free(md5val);
 
     register_exit(ffmpeg_cleanup);
 
