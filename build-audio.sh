@@ -244,11 +244,12 @@ build_ffmpegjs() {
 		-I. -I./fftools -I$BUILD_DIR/include \
 		-Llibavcodec -Llibavdevice -Llibavfilter -Llibavformat -Llibavresample -Llibavutil -Llibpostproc -Llibswscale -Llibswresample -Llibpostproc -L${BUILD_DIR}/lib \
 		-Qunused-arguments -Oz \
-		-o dist/ffmpeg-core.js fftools/ffmpeg_opt.c fftools/ffmpeg_filter.c fftools/ffmpeg_hw.c fftools/cmdutils.c fftools/ffmpeg.c \
+		-o dist/ffmpeg-video.js fftools/ffmpeg_opt.c fftools/ffmpeg_filter.c fftools/ffmpeg_hw.c fftools/cmdutils.c fftools/ffmpeg.c \
 		-lavfilter -lavformat -lavcodec -lswresample -lswscale -lavutil -lfdk-aac -lmp3lame -lopus -lshine -lz -lm \
 		-lopencore-amrnb -lopencore-amrwb -lvo-aacenc -lvo-amrwbenc \
 		--closure 1 \
 		--pre-js prepend.js \
+		-s EXPORT_NAME="'FFAudioModule'" \
 		-s USE_SDL=2 \
 		-s MODULARIZE=1 \
 		-s SINGLE_FILE=1 \
